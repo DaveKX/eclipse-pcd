@@ -8,9 +8,10 @@ import java.io.File;
 import java.io.FileFilter;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.util.List;
 
 @SuppressWarnings("serial")
-public class GUIProjeto extends JFrame {
+public class Gui extends JFrame {
 	private JTextField searchField;
 	private JButton searchButton;
 	private JButton downloadButton;
@@ -18,7 +19,9 @@ public class GUIProjeto extends JFrame {
 	private JList<String> resultList;
 	private DefaultListModel<String> listModel;
 	private File[] files;
-	public GUIProjeto() {
+	private DownloadTasksManager downloadManager;
+
+	public Gui() {
 
 		setTitle("GUI Projeto (Altura: " + this.getHeight() + ", Largura: " + this.getWidth());
 		setSize(800, 300);
@@ -26,9 +29,9 @@ public class GUIProjeto extends JFrame {
 		setLayout(new BorderLayout());
 		setResizable(false);
 		setLocationRelativeTo(null);
+		
 		files = getFiles();
-		
-		
+		downloadManager = new DownloadTasksManager();
 
 		// painel superior
 		JPanel topPanel = new JPanel();
@@ -47,7 +50,7 @@ public class GUIProjeto extends JFrame {
 		listModel = new DefaultListModel<>();
 		resultList = new JList<>(listModel);
 		leftPanel.add(new JScrollPane(resultList), BorderLayout.CENTER);
-		for(File f : files)
+		for (File f : files)
 			listModel.addElement(f.getName());
 
 		// painel direito
@@ -72,12 +75,12 @@ public class GUIProjeto extends JFrame {
 				listModel.clear();
 //                listModel.clear();
 				if (!searchText.isEmpty()) {
-					for(File f : files)
-						if(f.getName().indexOf(searchText) != -1)
+					for (File f : files)
+						if (f.getName().indexOf(searchText) != -1)
 							listModel.addElement(f.getName());
 				} else {
-					for(File f : files)
-							listModel.addElement(f.getName());
+					for (File f : files)
+						listModel.addElement(f.getName());
 				}
 			}
 		});
@@ -101,7 +104,7 @@ public class GUIProjeto extends JFrame {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// Criar a nova janela (JDialog)
-				JDialog dialog = new JDialog(GUIProjeto.this, "Ligar a Nó", true);
+				JDialog dialog = new JDialog(Gui.this, "Ligar a Nó", true);
 				dialog.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
 				dialog.setResizable(false);
 
@@ -157,7 +160,7 @@ public class GUIProjeto extends JFrame {
 				});
 
 				dialog.setSize(600, 80);
-				dialog.setLocationRelativeTo(GUIProjeto.this);
+				dialog.setLocationRelativeTo(Gui.this);
 				dialog.setVisible(true);
 			}
 		});
@@ -168,20 +171,47 @@ public class GUIProjeto extends JFrame {
 				setTitle("GUI Projeto (Altura: " + getHeight() + ", Largura: " + getWidth() + ")");
 			}
 		});
-	}
-	
-	public File[] getFiles() {
-		String path = "src/files";
-		File[] files = new File(path).listFiles(new FileFilter() {
-			public boolean accept(File f) {
-				return true;
+
+		downloadButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String selectedFile = resultList.getSelectedValue();
+				if (selectedFile == null) {
+					JOptionPane.showMessageDialog(Gui.this, "Por favor, selecione um arquivo para descarregar.");
+					return;
+				}
+
+				File file = new File("src/files/" + selectedFile);
+				if (!file.exists()) {
+					JOptionPane.showMessageDialog(Gui.this, "Arquivo não encontrado: " + selectedFile);
+					return;
+				}
+
+				List<FileBlockRequestMessage> blocks = BlockManager.createBlocks(file);
+				if (blocks.isEmpty()) {
+					JOptionPane.showMessageDialog(Gui.this, "Erro ao criar blocos para o arquivo.");
+				} else {
+					JOptionPane.showMessageDialog(Gui.this, "Blocos criados: " + blocks.size());
+					blocks.forEach(downloadManager::addTask);
+
+					// Iniciar threads de download
+					for (int i = 0; i < 5; i++) { // Máximo de 5 threads
+						new DownloadWorker(downloadManager).start();
+					}
+				}
 			}
 		});
-		return files;
+
 	}
 
+	private File[] getFiles() {
+        String path = "src/files";
+        File dir = new File(path);
+        return dir.listFiles(f -> true);
+    }
+
 	public static void main(String[] args) {
-		GUIProjeto window = new GUIProjeto();
+		Gui window = new Gui();
 		window.setVisible(true);
 	}
 }
