@@ -8,8 +8,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 
-public class SimpleServer {
-	public static final int PORTO = 8081;
+public class SimpleServer3 {
+	public static final int PORTO = 8083;
 	public static class DealWithClient extends Thread{
 		private BufferedReader in;
 		private PrintWriter out;
@@ -37,10 +37,9 @@ public class SimpleServer {
 			}
 		}
 
-
 	public static void main(String[] args) {
 		try {
-			new SimpleServer().startServing();
+			new SimpleServer3().startServing();
 		} catch (IOException e) {}}
 
 	public void startServing() throws IOException {

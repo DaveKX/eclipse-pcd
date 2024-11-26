@@ -211,6 +211,19 @@ public class Gui extends JFrame {
         File dir = new File(path);
         return dir.listFiles(f -> true);
     }
+	
+	private void addFiles(String path) {
+		File dir = new File(path);
+		File[] newF = dir.listFiles(f -> true);
+		File[] newFiles = new File[newF.length + files.length];
+		int i;
+		for(i = 0; i<newF.length; i++){
+			newFiles[i] = newF[i];
+		}
+		for(i = 0; i<files.length; i++){
+			newFiles[i+newF.length] = files[i];
+		}
+	}
 
 	public static void main(String[] args) {
 		Gui window = new Gui(getFiles(), "0");
