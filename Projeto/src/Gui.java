@@ -21,9 +21,9 @@ public class Gui extends JFrame {
 	private File[] files;
 	private DownloadTasksManager downloadManager;
 
-	public Gui(File[] file) {
+	public Gui(File[] file, String title) {
 		this.files = file;
-		setTitle("GUI Projeto (Altura: " + this.getHeight() + ", Largura: " + this.getWidth());
+		setTitle("Cliente " + title + " (Altura: " + this.getHeight() + ", Largura: " + this.getWidth());
 		setSize(800, 300);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setLayout(new BorderLayout());
@@ -213,7 +213,7 @@ public class Gui extends JFrame {
     }
 
 	public static void main(String[] args) {
-		Gui window = new Gui(getFiles());
+		Gui window = new Gui(getFiles(), "0");
 		window.setVisible(true);
 	}
 }

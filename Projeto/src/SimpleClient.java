@@ -14,13 +14,9 @@ public class SimpleClient {
 	private PrintWriter out;
 	private BufferedReader console;
 	private Socket socket;
-	private int id;
-//	public static void main(String[] args) {
-//		new SimpleClient().runClient();
-//	}
-	
-	public SimpleClient(int i) {
-		this.id = i;
+	private String id;
+	public static void main(String[] args) {
+		new SimpleClient().runClient();
 	}
 	
 	private File[] getFiles() {
@@ -31,9 +27,11 @@ public class SimpleClient {
 	
 	public void runClient() {
 		try {
-			Gui window = new Gui(getFiles());
-			window.setVisible(true);
 			connectToServer();
+			id = console.readLine();
+			Gui window = new Gui(getFiles(), id);
+			window.setVisible(true);
+			
 			sendMessages();
 		} catch (IOException e) {// ERRO...
 		} finally {//a fechar...
