@@ -21,8 +21,8 @@ public class Gui extends JFrame {
 	private File[] files;
 	private DownloadTasksManager downloadManager;
 
-	public Gui() {
-
+	public Gui(File[] file) {
+		this.files = file;
 		setTitle("GUI Projeto (Altura: " + this.getHeight() + ", Largura: " + this.getWidth());
 		setSize(800, 300);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -30,7 +30,9 @@ public class Gui extends JFrame {
 		setResizable(false);
 		setLocationRelativeTo(null);
 		
-		files = getFiles();
+	//	files = getFiles();
+		
+		
 		downloadManager = new DownloadTasksManager();
 
 		// painel superior
@@ -204,14 +206,14 @@ public class Gui extends JFrame {
 
 	}
 
-	private File[] getFiles() {
+	private static File[] getFiles() {
         String path = "src/files";
         File dir = new File(path);
         return dir.listFiles(f -> true);
     }
 
 	public static void main(String[] args) {
-		Gui window = new Gui();
+		Gui window = new Gui(getFiles());
 		window.setVisible(true);
 	}
 }
