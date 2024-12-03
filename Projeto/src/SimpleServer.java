@@ -14,6 +14,8 @@ import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.DefaultListModel;
@@ -32,38 +34,55 @@ public class SimpleServer {
 	private ObjectOutputStream out;
 	private Socket socket;
 	private static String id;
+	private File[] files;
+	private String address;
+	private static String port;
+	private List<FileSearchResult> fileList;
+	private DefaultListModel<String> listModel;
 	
-	public SimpleServer(String id) {
+	public SimpleServer(String id) throws UnknownHostException {
 		this.id = id;
+		this.address = InetAddress.getByName(null).toString();
 	}
 	
 	public static void main(String[] args) {
 		try {
-			SimpleServer server = new SimpleServer(args[0]);
+			port = args[0];
+			SimpleServer server = new SimpleServer(args[1]);
 			System.out.println("sou o servidor " + id);
-			Gui window = server.new Gui(getFiles(id), args[1]);
+			Gui window = server.new Gui(args[1]);
 			window.setVisible(true);
-			server.startServing(Integer.parseInt(args[1]));
+			server.startServing(Integer.parseInt(port));
 			
 		} catch (IOException e) {}}
 	
-	public static class DealWithClient extends Thread{
+	public class DealWithClient extends Thread{
 		private ObjectInputStream in;
 		private ObjectOutputStream out;
 		
 		DealWithClient(Socket socket) throws IOException {
-			out = new ObjectOutputStream(socket.getOutputStream ());
+			out = new ObjectOutputStream(socket.getOutputStream());
 			in = new ObjectInputStream(socket.getInputStream());
 		}
 		
 		public void run() {
 			while (true) {
+				System.out.println("reading object");
 				Object msg;
 					try {
 						msg = in.readObject();
+						System.out.println(msg.getClass()	);
 						if(msg instanceof NewConnectionRequest) {
 							System.out.println("Eco: Conectei-me ao servidor " + ((NewConnectionRequest) msg).getId());
 							System.out.println(((NewConnectionRequest) msg).getText());
+						} else if(msg instanceof WordSearchMessage) {
+							sendAnswer(msg);
+						} else if(msg instanceof ListFileSearch) {
+							System.out.println("recebi files");
+							fileList = ListFileSearch.getFileList();
+							for(FileSearchResult f : fileList) {
+								listModel.addElement(f.getFileName());
+							}
 						}
 					} catch (ClassNotFoundException | IOException e) {
 						// TODO Auto-generated catch block
@@ -72,6 +91,22 @@ public class SimpleServer {
 				}
 			
 		}
+	}
+	
+	public synchronized void sendAnswer(WordSearchMessage msg) throws IOException {
+		System.out.println("Eco: Recebi pedido de procura - " + ((WordSearchMessage) msg).getText());
+		String procura = ((WordSearchMessage) msg).getText();
+		System.out.println(procura);
+		List<FileSearchResult> fileList = new ArrayList<FileSearchResult>();
+		for(File f : files) {
+			if (f.getName().indexOf(procura) != -1) {
+				FileSearchResult fsr = new FileSearchResult((WordSearchMessage) msg, "hash", (int) f.length(), f.getName(), address, port);
+				fileList.add(fsr);
+			}
+		}
+		ListFileSearch listAnswer = new ListFileSearch(fileList);
+		out.writeObject(listAnswer);
+		notifyAll();
 	}
 	
 	void connectToServer(int port) throws IOException {
@@ -95,15 +130,6 @@ public class SimpleServer {
 				ss.close();
 			}
 	}
-	
-	private JTextField searchField;
-	private JButton searchButton;
-	private JButton downloadButton;
-	private JButton connectButton;
-	private JList<String> resultList;
-	private DefaultListModel<String> listModel;
-	private File[] files;
-	private DownloadTasksManager downloadManager;
 
 	public class Gui extends JFrame {
 		private JTextField searchField;
@@ -111,14 +137,12 @@ public class SimpleServer {
 		private JButton downloadButton;
 		private JButton connectButton;
 		private JList<String> resultList;
-		private DefaultListModel<String> listModel;
-		private File[] files;
+		
 		private DownloadTasksManager downloadManager;
 		private String title;
 
-		public Gui(File[] file, String title) {
+		public Gui(String title) {
 			this.title = title;
-			this.files = file;
 			setTitle("Cliente " + title + " (Altura: " + this.getHeight() + ", Largura: " + this.getWidth());
 			setSize(800, 300);
 			setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -126,7 +150,7 @@ public class SimpleServer {
 			setResizable(false);
 			setLocationRelativeTo(null);
 			
-		//	files = getFiles();
+			files = getFiles();
 			
 			
 			downloadManager = new DownloadTasksManager();
@@ -148,8 +172,8 @@ public class SimpleServer {
 			listModel = new DefaultListModel<>();
 			resultList = new JList<>(listModel);
 			leftPanel.add(new JScrollPane(resultList), BorderLayout.CENTER);
-			for (File f : files)
-				listModel.addElement(f.getName());
+//			for (File f : files)
+//				listModel.addElement(f.getName());
 
 			// painel direito
 			JPanel rightPanel = new JPanel();
@@ -171,15 +195,22 @@ public class SimpleServer {
 				public void actionPerformed(ActionEvent e) {
 					String searchText = searchField.getText();
 					listModel.clear();
-//	                listModel.clear();
-					if (!searchText.isEmpty()) {
-						for (File f : files)
-							if (f.getName().indexOf(searchText) != -1)
-								listModel.addElement(f.getName());
-					} else {
-						for (File f : files)
-							listModel.addElement(f.getName());
+//					if (!searchText.isEmpty()) {
+//						for (File f : files)
+//							if (f.getName().indexOf(searchText) != -1)
+//								listModel.addElement(f.getName());
+//					} else {
+//						for (File f : files)
+//							listModel.addElement(f.getName());
+//					}
+					
+					try {
+						sendMessage(searchText);
+					} catch (InterruptedException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
 					}
+					
 				}
 			});
 
@@ -210,7 +241,7 @@ public class SimpleServer {
 					JLabel addressLabel = new JLabel("Endereço: ");
 					JTextField addressField = new JTextField("localhost");
 					JLabel portLabel = new JLabel("Porta: ");
-					JTextField portField = new JTextField("8080");
+					JTextField portField = new JTextField("8081");
 					JButton cancelButton = new JButton("Cancelar");
 					JButton okButton = new JButton("OK");
 
@@ -302,9 +333,19 @@ public class SimpleServer {
 			});
 
 		}
-}
+		public synchronized void sendMessage(String text) throws InterruptedException {
+			WordSearchMessage procura = new WordSearchMessage(text);
+			try {
+				out.writeObject(procura);
+				wait(1000);
+			} catch (IOException  e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+	}
 
-	private static File[] getFiles(String id) {
+	private static File[] getFiles() {
         String path = "src/dl" + id;
         File dir = new File(path);
         return dir.listFiles(f -> true);
