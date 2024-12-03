@@ -76,7 +76,7 @@ public class SimpleServer {
 							System.out.println("Eco: Conectei-me ao servidor " + ((NewConnectionRequest) msg).getId());
 							System.out.println(((NewConnectionRequest) msg).getText());
 						} else if(msg instanceof WordSearchMessage) {
-							sendAnswer(msg);
+							sendAnswer((WordSearchMessage)msg);
 						} else if(msg instanceof ListFileSearch) {
 							System.out.println("recebi files");
 							fileList = ListFileSearch.getFileList();
@@ -114,8 +114,8 @@ public class SimpleServer {
 		System.out.println("Endereco:" + endereco);
 		socket = new Socket(endereco, port);
 		System.out.println("Socket:" + socket);
-		out = new ObjectOutputStream(socket.getOutputStream ());
-		in = new ObjectInputStream(socket.getInputStream ());
+		out = new ObjectOutputStream(socket.getOutputStream());
+		in = new ObjectInputStream(socket.getInputStream());
 
 	}
 
@@ -336,8 +336,10 @@ public class SimpleServer {
 		public synchronized void sendMessage(String text) throws InterruptedException {
 			WordSearchMessage procura = new WordSearchMessage(text);
 			try {
+				while(files == null)
+					
+					wait();
 				out.writeObject(procura);
-				wait(1000);
 			} catch (IOException  e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
