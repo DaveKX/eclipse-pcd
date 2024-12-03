@@ -29,7 +29,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
 public class SimpleServer {
-	public static final int PORTO = 8081;
 	private BufferedReader in;
 	private PrintWriter out;
 	private Socket socket;
@@ -43,28 +42,40 @@ public class SimpleServer {
 		try {
 			SimpleServer server = new SimpleServer(args[0]);
 			System.out.println("sou o servidor " + server.id);
-			server.startServing();
+			Gui window = server.new Gui(getFiles(), args[1]);
+			window.setVisible(true);
+			server.startServing(Integer.parseInt(args[1]));
+			
 		} catch (IOException e) {}}
 	
 	public static class DealWithClient extends Thread{
 		private BufferedReader in;
 		private PrintWriter out;
-		private Object msg;
 		
-		DealWithClient(Socket socket, Object message) throws IOException {
+		DealWithClient(Socket socket) throws IOException {
 			in = new BufferedReader(new InputStreamReader(
 					socket.getInputStream()));
 			out = new PrintWriter(new BufferedWriter(
 					new OutputStreamWriter(socket.getOutputStream())),
 					true);
-			this.msg = message;
 		}
 		
 		public void run() {
 			while (true) {
-				if(msg instanceof NewConnectionRequest) {
-					System.out.println("recebi uma mensagem de conexão");
+				String str;
+//				if(in instanceof NewConnectionRequest) {
+//					System.out.println("recebi uma mensagem de conexão");
+//				}
+				try {
+					str = in.readLine();
+					if (str.equals("FIM"))
+						break;
+					System.out.println("Eco:" + str);
+					
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
+				
 				}
 			
 		}
@@ -83,12 +94,12 @@ public class SimpleServer {
 				true);
 	}
 
-	public void startServing() throws IOException {
-		ServerSocket ss = new ServerSocket(PORTO);
+	public void startServing(int port) throws IOException {
+		ServerSocket ss = new ServerSocket(port);
 			try {//Conexao aceite
 				while(true) {
 					Socket socket = ss.accept();
-//					new DealWithClient(socket).start();
+					new DealWithClient(socket).start();
 				}
 			} finally {//a fechar
 				ss.close();
@@ -113,8 +124,10 @@ public class SimpleServer {
 		private DefaultListModel<String> listModel;
 		private File[] files;
 		private DownloadTasksManager downloadManager;
+		private String title;
 
 		public Gui(File[] file, String title) {
+			this.title = title;
 			this.files = file;
 			setTitle("Cliente " + title + " (Altura: " + this.getHeight() + ", Largura: " + this.getWidth());
 			setSize(800, 300);
@@ -249,7 +262,17 @@ public class SimpleServer {
 							String port = portField.getText();
 							System.out.println("Endereço: " + address);
 							System.out.println("Porta: " + port);
-							
+							try {
+								socket = new Socket(address, Integer.parseInt(port));
+								in = new BufferedReader(new InputStreamReader(
+										socket.getInputStream()));
+								out = new PrintWriter(new BufferedWriter(
+										new OutputStreamWriter(socket.getOutputStream())),
+										true);
+								out.println("olá, sou o servidor " + title + " e conectei-me a ti servidor " + port);
+							} catch (NumberFormatException | IOException e1) {
+								e1.printStackTrace();
+							}
 							dialog.dispose();
 						}
 					});
