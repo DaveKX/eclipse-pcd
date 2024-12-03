@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -30,8 +31,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
 public class SimpleServer {
-	private ObjectInputStream in;
 	private ObjectOutputStream out;
+	private ObjectInputStream in;
 	private Socket socket;
 	private static String id;
 	private File[] files;
@@ -57,12 +58,12 @@ public class SimpleServer {
 		} catch (IOException e) {}}
 	
 	public class DealWithClient extends Thread{
-		private ObjectInputStream in;
-		private ObjectOutputStream out;
+		private ObjectInputStream ins;
+		private ObjectOutputStream outs;
 		
 		DealWithClient(Socket socket) throws IOException {
-			out = new ObjectOutputStream(socket.getOutputStream());
-			in = new ObjectInputStream(socket.getInputStream());
+			outs = new ObjectOutputStream(socket.getOutputStream());
+			ins = new ObjectInputStream(socket.getInputStream());
 		}
 		
 		public void run() {
@@ -70,44 +71,50 @@ public class SimpleServer {
 				System.out.println("reading object");
 				Object msg;
 					try {
-						msg = in.readObject();
-						System.out.println(msg.getClass()	);
+						msg = ins.readObject();
+						System.out.println(msg.getClass());
 						if(msg instanceof NewConnectionRequest) {
-							System.out.println("Eco: Conectei-me ao servidor " + ((NewConnectionRequest) msg).getId());
-							System.out.println(((NewConnectionRequest) msg).getText());
+							System.out.println("Eco: Conectei-me ao servidor " + ((NewConnectionRequest) msg).getPort());
+							connectToServer(Integer.parseInt(((NewConnectionRequest) msg).getPort()));
 						} else if(msg instanceof WordSearchMessage) {
-							sendAnswer((WordSearchMessage)msg);
+							responseWSM((WordSearchMessage)msg);
 						} else if(msg instanceof ListFileSearch) {
 							System.out.println("recebi files");
-							fileList = ListFileSearch.getFileList();
+							fileList = ((ListFileSearch)msg).getFileList();
 							for(FileSearchResult f : fileList) {
 								listModel.addElement(f.getFileName());
 							}
 						}
+						
 					} catch (ClassNotFoundException | IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
-					}
+					} 
 				}
+			
+		}
+		public synchronized void responseWSM(WordSearchMessage msg) throws IOException {
+			System.out.println("Eco: Recebi pedido de procura - " + ((WordSearchMessage) msg).getText());
+			String procura = ((WordSearchMessage) msg).getText();
+			System.out.println(procura);
+			List<FileSearchResult> fileList = new ArrayList<FileSearchResult>();
+			for(File f : files) {
+				if (f.getName().indexOf(procura) != -1) {
+					FileSearchResult fsr = new FileSearchResult((WordSearchMessage) msg, "hash", (int) f.length(), f.getName(), address, port);
+					fileList.add(fsr);
+				}
+			}
+			ListFileSearch listAnswer = new ListFileSearch(fileList);
+//			for(FileSearchResult f : listAnswer.getFileList()) {
+//				System.out.println(f.getFileName());
+//			}
+			out.writeObject(listAnswer);
+			System.out.println("Mandei resposta");
 			
 		}
 	}
 	
-	public synchronized void sendAnswer(WordSearchMessage msg) throws IOException {
-		System.out.println("Eco: Recebi pedido de procura - " + ((WordSearchMessage) msg).getText());
-		String procura = ((WordSearchMessage) msg).getText();
-		System.out.println(procura);
-		List<FileSearchResult> fileList = new ArrayList<FileSearchResult>();
-		for(File f : files) {
-			if (f.getName().indexOf(procura) != -1) {
-				FileSearchResult fsr = new FileSearchResult((WordSearchMessage) msg, "hash", (int) f.length(), f.getName(), address, port);
-				fileList.add(fsr);
-			}
-		}
-		ListFileSearch listAnswer = new ListFileSearch(fileList);
-		out.writeObject(listAnswer);
-		notifyAll();
-	}
+	
 	
 	void connectToServer(int port) throws IOException {
 		InetAddress endereco = InetAddress.getByName(null);
@@ -279,13 +286,13 @@ public class SimpleServer {
 					okButton.addActionListener(new ActionListener() {
 						@Override
 						public void actionPerformed(ActionEvent e) {
-							String address = addressField.getText();
-							String port = portField.getText();
+							String addressGui = addressField.getText();
+							String portGui = portField.getText();
 							System.out.println("Endereço: " + address);
 							System.out.println("Porta: " + port);
 							try {
-								connectToServer(Integer.parseInt(port));
-								NewConnectionRequest ncr = new NewConnectionRequest(1, "Oláaaaaa");
+								connectToServer(Integer.parseInt(portGui));
+								NewConnectionRequest ncr = new NewConnectionRequest(address, port);
 								out.writeObject(ncr);
 							} catch (NumberFormatException | IOException e1) {
 								e1.printStackTrace();
@@ -336,11 +343,9 @@ public class SimpleServer {
 		public synchronized void sendMessage(String text) throws InterruptedException {
 			WordSearchMessage procura = new WordSearchMessage(text);
 			try {
-				while(files == null)
-					
-					wait();
 				out.writeObject(procura);
-			} catch (IOException  e1) {
+				
+			} catch (IOException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}

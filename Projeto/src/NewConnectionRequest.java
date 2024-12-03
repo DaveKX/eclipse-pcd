@@ -1,19 +1,19 @@
 import java.io.Serializable;
 
 public class NewConnectionRequest implements Serializable{
-	private int id;
-	private String text;
-	public NewConnectionRequest(int id, String text) {
-		this.id = id;
-		this.text = text;
+	private String address;
+	private String port;
+	public NewConnectionRequest(String add, String port) {
+		this.address = add;
+		this.port = port;
 	}
 
-	public String getText() {
-		return text;
+	public String getPort() {
+		return port;
 	}
 
-	public int getId() {
-		return id;
+	public String getAddress() {
+		return address;
 	}
 
 }

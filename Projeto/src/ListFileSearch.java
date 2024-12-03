@@ -2,13 +2,13 @@ import java.io.Serializable;
 import java.util.List;
 
 public class ListFileSearch implements Serializable{
-	private static List<FileSearchResult> fileList;
+	private  List<FileSearchResult> fileList;
 	
 	public ListFileSearch(List<FileSearchResult> fileList) {
 		this.fileList = fileList;
 	}
 
-	public static List<FileSearchResult> getFileList() {
+	public List<FileSearchResult> getFileList() {
 		return fileList;
 	}
 	
