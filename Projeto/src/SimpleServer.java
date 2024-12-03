@@ -9,9 +9,8 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -29,10 +28,10 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
 public class SimpleServer {
-	private BufferedReader in;
-	private PrintWriter out;
+	private ObjectInputStream in;
+	private ObjectOutputStream out;
 	private Socket socket;
-	private String id;
+	private static String id;
 	
 	public SimpleServer(String id) {
 		this.id = id;
@@ -41,41 +40,35 @@ public class SimpleServer {
 	public static void main(String[] args) {
 		try {
 			SimpleServer server = new SimpleServer(args[0]);
-			System.out.println("sou o servidor " + server.id);
-			Gui window = server.new Gui(getFiles(), args[1]);
+			System.out.println("sou o servidor " + id);
+			Gui window = server.new Gui(getFiles(id), args[1]);
 			window.setVisible(true);
 			server.startServing(Integer.parseInt(args[1]));
 			
 		} catch (IOException e) {}}
 	
 	public static class DealWithClient extends Thread{
-		private BufferedReader in;
-		private PrintWriter out;
+		private ObjectInputStream in;
+		private ObjectOutputStream out;
 		
 		DealWithClient(Socket socket) throws IOException {
-			in = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()));
-			out = new PrintWriter(new BufferedWriter(
-					new OutputStreamWriter(socket.getOutputStream())),
-					true);
+			out = new ObjectOutputStream(socket.getOutputStream ());
+			in = new ObjectInputStream(socket.getInputStream());
 		}
 		
 		public void run() {
 			while (true) {
-				String str;
-//				if(in instanceof NewConnectionRequest) {
-//					System.out.println("recebi uma mensagem de conexão");
-//				}
-				try {
-					str = in.readLine();
-					if (str.equals("FIM"))
-						break;
-					System.out.println("Eco:" + str);
-					
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				
+				Object msg;
+					try {
+						msg = in.readObject();
+						if(msg instanceof NewConnectionRequest) {
+							System.out.println("Eco: Conectei-me ao servidor " + ((NewConnectionRequest) msg).getId());
+							System.out.println(((NewConnectionRequest) msg).getText());
+						}
+					} catch (ClassNotFoundException | IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 			
 		}
@@ -86,12 +79,9 @@ public class SimpleServer {
 		System.out.println("Endereco:" + endereco);
 		socket = new Socket(endereco, port);
 		System.out.println("Socket:" + socket);
-		in = new BufferedReader(new InputStreamReader(
-				socket.getInputStream()));
-		
-		out = new PrintWriter(new BufferedWriter(
-				new OutputStreamWriter(socket.getOutputStream())),
-				true);
+		out = new ObjectOutputStream(socket.getOutputStream ());
+		in = new ObjectInputStream(socket.getInputStream ());
+
 	}
 
 	public void startServing(int port) throws IOException {
@@ -263,13 +253,9 @@ public class SimpleServer {
 							System.out.println("Endereço: " + address);
 							System.out.println("Porta: " + port);
 							try {
-								socket = new Socket(address, Integer.parseInt(port));
-								in = new BufferedReader(new InputStreamReader(
-										socket.getInputStream()));
-								out = new PrintWriter(new BufferedWriter(
-										new OutputStreamWriter(socket.getOutputStream())),
-										true);
-								out.println("olá, sou o servidor " + title + " e conectei-me a ti servidor " + port);
+								connectToServer(Integer.parseInt(port));
+								NewConnectionRequest ncr = new NewConnectionRequest(1, "Oláaaaaa");
+								out.writeObject(ncr);
 							} catch (NumberFormatException | IOException e1) {
 								e1.printStackTrace();
 							}
@@ -318,8 +304,8 @@ public class SimpleServer {
 		}
 }
 
-	private static File[] getFiles() {
-        String path = "src/files";
+	private static File[] getFiles(String id) {
+        String path = "src/dl" + id;
         File dir = new File(path);
         return dir.listFiles(f -> true);
     }
