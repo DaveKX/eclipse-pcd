@@ -5,5 +5,5 @@ public class FileBlockAnswerMessage {
 	public FileBlockAnswerMessage(String text) {
 		this.text = text;
 	}
-	
+
 }
