@@ -31,7 +31,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
 public class SimpleServer {
-	private ObjectOutputStream out;
+	private ArrayList<ObjectOutputStream> outList = new ArrayList<ObjectOutputStream>();
 	private ObjectInputStream in;
 	private Socket socket;
 	private static String id;
@@ -108,7 +108,9 @@ public class SimpleServer {
 //			for(FileSearchResult f : listAnswer.getFileList()) {
 //				System.out.println(f.getFileName());
 //			}
-			out.writeObject(listAnswer);
+			for(ObjectOutputStream out : outList) {
+				out.writeObject(listAnswer);
+			}
 			System.out.println("Mandei resposta");
 			
 		}
@@ -121,7 +123,7 @@ public class SimpleServer {
 		System.out.println("Endereco:" + endereco);
 		socket = new Socket(endereco, port);
 		System.out.println("Socket:" + socket);
-		out = new ObjectOutputStream(socket.getOutputStream());
+		outList.add(new ObjectOutputStream(socket.getOutputStream()));
 		in = new ObjectInputStream(socket.getInputStream());
 
 	}
@@ -293,7 +295,7 @@ public class SimpleServer {
 							try {
 								connectToServer(Integer.parseInt(portGui));
 								NewConnectionRequest ncr = new NewConnectionRequest(address, port);
-								out.writeObject(ncr);
+								outList.get(outList.size() - 1).writeObject(ncr);
 							} catch (NumberFormatException | IOException e1) {
 								e1.printStackTrace();
 							}
@@ -341,9 +343,10 @@ public class SimpleServer {
 
 		}
 		public synchronized void sendMessage(String text) throws InterruptedException {
-			WordSearchMessage procura = new WordSearchMessage(text);
+			WordSearchMessage procura = new WordSearchMessage(text, address, port);
 			try {
-				out.writeObject(procura);
+				for(ObjectOutputStream out : outList)
+					out.writeObject(procura);
 				
 			} catch (IOException e1) {
 				// TODO Auto-generated catch block
