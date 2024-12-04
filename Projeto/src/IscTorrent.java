@@ -8,6 +8,9 @@ import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -31,7 +34,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
 public class IscTorrent {
-	private ArrayList<ObjectOutputStream> outList = new ArrayList<ObjectOutputStream>();
+	private ArrayList<NodeOutput> outList = new ArrayList<NodeOutput>();
 	private ObjectInputStream in;
 	private Socket socket;
 	private static String id;
@@ -84,6 +87,8 @@ public class IscTorrent {
 							for(FileSearchResult f : fileList) {
 								listModel.addElement(f.getFileName());
 							}
+						} else if(msg instanceof FileBlockRequestMessage) {
+							sendBlock(((FileBlockRequestMessage)msg).getFileHash());
 						}
 						
 					} catch (ClassNotFoundException | IOException e) {
@@ -93,6 +98,18 @@ public class IscTorrent {
 				}
 			
 		}
+		
+		private synchronized void sendBlock(String hash) throws FileNotFoundException {
+			BufferedReader reader = new BufferedReader(new FileReader("input.txt")); 
+			FileOutputStream file = new FileOutputStream("temp"); 
+			String line;
+			for(NodeOutput out : outList) {
+//				while((line = reader.readLine()) != null) {
+//					out.getOut().writeObject(new FileBlockAnswerMessage());
+//				}
+			}
+		}
+
 		public synchronized void responseWSM(WordSearchMessage msg) throws IOException {
 			System.out.println("Eco: Recebi pedido de procura - " + ((WordSearchMessage) msg).getText());
 			String procura = ((WordSearchMessage) msg).getText();
@@ -100,7 +117,8 @@ public class IscTorrent {
 			List<FileSearchResult> fileList = new ArrayList<FileSearchResult>();
 			for(File f : files) {
 				if (f.getName().indexOf(procura) != -1) {
-					FileSearchResult fsr = new FileSearchResult((WordSearchMessage) msg, "hash", (int) f.length(), f.getName(), address, port);
+					String hash = FileUtils.calculateFileHash(f);
+					FileSearchResult fsr = new FileSearchResult((WordSearchMessage) msg, hash, (int) f.length(), f.getName(), address, port);
 					fileList.add(fsr);
 				}
 			}
@@ -108,8 +126,8 @@ public class IscTorrent {
 //			for(FileSearchResult f : listAnswer.getFileList()) {
 //				System.out.println(f.getFileName());
 //			}
-			for(ObjectOutputStream out : outList) {
-				out.writeObject(listAnswer);
+			for(NodeOutput out : outList) {
+				out.getOut().writeObject(listAnswer);
 			}
 			System.out.println("Mandei resposta");
 			
@@ -123,7 +141,7 @@ public class IscTorrent {
 		System.out.println("Endereco:" + endereco);
 		socket = new Socket(endereco, port);
 		System.out.println("Socket:" + socket);
-		outList.add(new ObjectOutputStream(socket.getOutputStream()));
+		outList.add(new NodeOutput(new ObjectOutputStream(socket.getOutputStream()), Integer.toString(port)));
 		in = new ObjectInputStream(socket.getInputStream());
 
 	}
@@ -295,7 +313,7 @@ public class IscTorrent {
 							try {
 								connectToServer(Integer.parseInt(portGui));
 								NewConnectionRequest ncr = new NewConnectionRequest(address, port);
-								outList.get(outList.size() - 1).writeObject(ncr);
+								outList.get(outList.size() - 1).getOut().writeObject(ncr);
 							} catch (NumberFormatException | IOException e1) {
 								e1.printStackTrace();
 							}
@@ -319,25 +337,37 @@ public class IscTorrent {
 						JOptionPane.showMessageDialog(Gui.this, "Por favor, selecione um arquivo para descarregar.");
 						return;
 					}
-
-					File file = new File("src/files/" + selectedFile);
-					if (!file.exists()) {
-						JOptionPane.showMessageDialog(Gui.this, "Arquivo não encontrado: " + selectedFile);
-						return;
+					ArrayList<FileBlockRequestMessage> blocks = null;
+					ArrayList<String> users = new ArrayList<>();
+					for(FileSearchResult f : fileList) {
+						users.add(f.getPort());
+						blocks = BlockManager.BlockManager(f.getFileSize(), f.getHash());
 					}
-
-					List<FileBlockRequestMessage> blocks = BlockManager.createBlocks(file);
-					if (blocks.isEmpty()) {
-						JOptionPane.showMessageDialog(Gui.this, "Erro ao criar blocos para o arquivo.");
-					} else {
-						JOptionPane.showMessageDialog(Gui.this, "Blocos criados: " + blocks.size());
-						blocks.forEach(downloadManager::addTask);
-
-						// Iniciar threads de download
-						for (int i = 0; i < 5; i++) { // Máximo de 5 threads
-							new DownloadWorker(downloadManager).start();
+					
+					for(NodeOutput out : outList) {
+						if(users.contains(out.getPort())) {
+							try {
+								out.getOut().writeObject(blocks.get(0));
+							} catch (IOException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							}
 						}
+						
 					}
+					
+//					if (blocks.isEmpty()) {
+//						JOptionPane.showMessageDialog(Gui.this, "Erro ao criar blocos para o arquivo.");
+//					} 
+//					else {
+//						JOptionPane.showMessageDialog(Gui.this, "Blocos criados: " + blocks.size());
+//						blocks.forEach(downloadManager::addTask);
+//
+//						// Iniciar threads de download
+//						for (int i = 0; i < 5; i++) { // Máximo de 5 threads
+//							new DownloadWorker(downloadManager).start();
+//						}
+//					}
 				}
 			});
 
@@ -345,8 +375,8 @@ public class IscTorrent {
 		public synchronized void sendMessage(String text) throws InterruptedException {
 			WordSearchMessage procura = new WordSearchMessage(text, address, port);
 			try {
-				for(ObjectOutputStream out : outList)
-					out.writeObject(procura);
+				for(NodeOutput out : outList)
+					out.getOut().writeObject(procura);
 				
 			} catch (IOException e1) {
 				// TODO Auto-generated catch block

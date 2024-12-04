@@ -1,9 +1,9 @@
 public class FileBlockRequestMessage {
 	private String fileHash;
-	private long offset;
+	private int offset;
 	private int length;
 
-	public FileBlockRequestMessage(String fileHash, long offset, int length) {
+	public FileBlockRequestMessage(String fileHash, int offset, int length) {
 		this.fileHash = fileHash;
 		this.offset = offset;
 		this.length = length;

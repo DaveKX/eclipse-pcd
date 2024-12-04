@@ -3,21 +3,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BlockManager {
-	private static final int BLOCK_SIZE = 10240; // tamanho fixo do bloco
-
-	public static List<FileBlockRequestMessage> createBlocks(File file) {
-		List<FileBlockRequestMessage> blocks = new ArrayList<>();
-		String fileHash = FileUtils.calculateFileHash(file);
-
-		if (fileHash == null) {
-			System.err.println("Não foi possível calcular o hash do arquivo: " + file.getName());
-			return blocks;
-		}
-
-		long fileSize = file.length();
-		for (long offset = 0; offset < fileSize; offset += BLOCK_SIZE) {
-			int length = (int) Math.min(BLOCK_SIZE, fileSize - offset);
-			blocks.add(new FileBlockRequestMessage(fileHash, offset, length));
+	private final static int blockSize = 10240; // tamanho fixo do bloco
+	
+	public static ArrayList<FileBlockRequestMessage> BlockManager(int fileSize, String hash) {
+		ArrayList<FileBlockRequestMessage> blocks =new ArrayList<FileBlockRequestMessage>();
+		for(int i=0; i<fileSize; i+=blockSize) {
+			blocks.add(new FileBlockRequestMessage(hash, i, (int) Math.min(blockSize, fileSize - i)));  
 		}
 		return blocks;
 	}
