@@ -1,14 +1,12 @@
 import java.io.Serializable;
 
-public class FileSearchResult implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class FileSearchResult implements Serializable{
 	private WordSearchMessage procura;
 	private String hash;
 	private int fileSize;
 	private String fileName;
 	private String address;
 	private String port;
-
 	public FileSearchResult(WordSearchMessage procura, String hash, int fileSize, String fileName, String address,
 			String port) {
 		this.procura = procura;
@@ -18,29 +16,26 @@ public class FileSearchResult implements Serializable {
 		this.address = address;
 		this.port = port;
 	}
-
 	public WordSearchMessage getProcura() {
 		return procura;
 	}
-
 	public String getHash() {
 		return hash;
 	}
-
 	public int getFileSize() {
 		return fileSize;
 	}
-
 	public String getFileName() {
 		return fileName;
 	}
-
 	public String getAddress() {
 		return address;
 	}
-
 	public String getPort() {
 		return port;
 	}
-
+	
+	
+	
+	
 }

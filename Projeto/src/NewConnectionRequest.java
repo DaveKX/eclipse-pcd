@@ -1,10 +1,8 @@
 import java.io.Serializable;
 
-public class NewConnectionRequest implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class NewConnectionRequest implements Serializable{
 	private String address;
 	private String port;
-
 	public NewConnectionRequest(String add, String port) {
 		this.address = add;
 		this.port = port;

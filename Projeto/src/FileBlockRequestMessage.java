@@ -1,7 +1,4 @@
-import java.io.Serializable;
-
-public class FileBlockRequestMessage implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class FileBlockRequestMessage {
 	private String fileHash;
 	private int offset;
 	private int length;

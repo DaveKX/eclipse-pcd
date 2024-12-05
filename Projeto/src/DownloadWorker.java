@@ -19,14 +19,14 @@ public class DownloadWorker extends Thread {
 				}
 			}
 		}
-
+		
 		synchronized (manager) {
-			if (Thread.activeCount() <= 2) { // Apenas a thread principal e a última worker
-				manager.finish();
-				System.out.println("Todos os blocos foram processados. Gerenciador finalizado.");
-			}
-		}
-
+            if (Thread.activeCount() <= 2) { // Apenas a thread principal e a última worker
+                manager.finish();
+                System.out.println("Todos os blocos foram processados. Gerenciador finalizado.");
+            }
+        }
+		
 		System.out.println("Thread " + this.getName() + " finalizada.");
 	}
 }
