@@ -1,15 +1,17 @@
+import java.security.MessageDigest;
+
 public class FileBlockRequestMessage {
-	private String fileHash;
+	private MessageDigest fileHash;
 	private int offset;
 	private int length;
 
-	public FileBlockRequestMessage(String fileHash, int offset, int length) {
+	public FileBlockRequestMessage(MessageDigest fileHash, int offset, int length) {
 		this.fileHash = fileHash;
 		this.offset = offset;
 		this.length = length;
 	}
 
-	public String getFileHash() {
+	public MessageDigest getFileHash() {
 		return fileHash;
 	}
 

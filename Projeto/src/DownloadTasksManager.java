@@ -1,42 +1,43 @@
-import java.util.LinkedList;
-import java.util.Queue;
+import java.io.File;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.util.ArrayList;
 
 public class DownloadTasksManager {
-	private final Queue<FileBlockRequestMessage> taskQueue;
-	private boolean isFinished;
+	private ArrayList<FileBlockRequestMessage> blocks = new ArrayList<FileBlockRequestMessage>();
+	private MessageDigest fileHash;
 
-	public DownloadTasksManager() {
-		this.taskQueue = new LinkedList<>();
-		this.isFinished = false;
-	}
+	public DownloadTasksManager(File f) {
+		try {
+			fileHash = MessageDigest.getInstance("SHA-256");
+			byte[] data = Files.readAllBytes(f.toPath());
+			fileHash.update(data);
+			BlockManager.createBlocks((int) f.length(), fileHash);
 
-	// Adiciona um novo bloco à fila de tarefas
-	public synchronized void addTask(FileBlockRequestMessage block) {
-		taskQueue.offer(block);
-		notifyAll(); // Notifica as threads aguardando
-	}
-
-	// Obtém o próximo bloco para descarregamento
-	public synchronized FileBlockRequestMessage getNextTask() {
-		while (taskQueue.isEmpty() && !isFinished) {
-			try {
-				wait(); // Aguarda até que uma nova tarefa seja adicionada ou o processo termine
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				return null;
-			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		return taskQueue.poll();
 	}
 
-	// Marca o processo como concluído
-	public synchronized void finish() {
-		isFinished = true;
-		notifyAll(); // Notifica as threads aguardando
+	public ArrayList<FileBlockRequestMessage> getBlocks() {
+		return blocks;
 	}
 
-	// Verifica se o gerenciador terminou
-	public synchronized boolean isFinished() {
-		return isFinished && taskQueue.isEmpty();
+	public int getNumBlocks() {
+		return blocks.size();
+	}
+
+	public String getHash() {
+		byte[] hashBytes = fileHash.digest();
+		String result = new String();
+
+		for (byte b : hashBytes) {
+			String hex = Integer.toHexString(0xff & b);
+			if (hex.length() == 1)
+				result = result + "0";
+			result = result + hex;
+		}
+
+		return result;
 	}
 }

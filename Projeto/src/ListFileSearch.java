@@ -1,9 +1,10 @@
 import java.io.Serializable;
 import java.util.List;
 
-public class ListFileSearch implements Serializable{
-	private  List<FileSearchResult> fileList;
-	
+@SuppressWarnings("serial")
+public class ListFileSearch implements Serializable {
+	private List<FileSearchResult> fileList;
+
 	public ListFileSearch(List<FileSearchResult> fileList) {
 		this.fileList = fileList;
 	}
@@ -11,6 +12,5 @@ public class ListFileSearch implements Serializable{
 	public List<FileSearchResult> getFileList() {
 		return fileList;
 	}
-	
-	
+
 }
