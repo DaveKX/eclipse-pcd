@@ -1,7 +1,6 @@
 import java.io.File;
 import java.io.FileInputStream;
 import java.security.MessageDigest;
-import java.util.Scanner;
 
 public class FileUtils {
 	public static String calculateFileHash(File file) {

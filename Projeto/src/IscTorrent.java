@@ -14,7 +14,6 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -98,7 +97,7 @@ public class IscTorrent {
 
 		}
 
-		private synchronized void sendBlock(MessageDigest hash) throws FileNotFoundException {
+		private synchronized void sendBlock(String hash) throws FileNotFoundException {
 //			BufferedReader reader = new BufferedReader(new FileReader("input.txt"));
 //			FileOutputStream file = new FileOutputStream("temp");
 //			String line;
