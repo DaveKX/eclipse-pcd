@@ -1,5 +1,6 @@
 import java.io.File;
 import java.io.Serializable;
+import java.util.ArrayList;
 
 @SuppressWarnings("serial")
 public class FileSearchResult implements Serializable {
@@ -10,6 +11,7 @@ public class FileSearchResult implements Serializable {
 	private String address;
 	private String port;
 	private File f;
+	private ArrayList<NodeOutput> nodeList = new ArrayList<>();
 
 	public FileSearchResult(WordSearchMessage procura, String hash, int fileSize, String fileName, String address,
 			String port, File f) {
@@ -20,6 +22,14 @@ public class FileSearchResult implements Serializable {
 		this.address = address;
 		this.port = port;
 		this.f = f;
+	}
+	
+	public ArrayList<NodeOutput> getNodeList() {
+		return nodeList;
+	}
+	
+	public void setNodeList(ArrayList<NodeOutput> nodeList) {
+		this.nodeList = nodeList;
 	}
 
 	public WordSearchMessage getProcura() {

@@ -1,5 +1,6 @@
 import java.io.Serializable;
 
+@SuppressWarnings("serial")
 public class WordSearchMessage implements Serializable {
 	private String text;
 	private String address;

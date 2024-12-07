@@ -1,4 +1,7 @@
-public class FileBlockRequestMessage {
+import java.io.Serializable;
+
+@SuppressWarnings("serial")
+public class FileBlockRequestMessage implements Serializable {
 	private String fileHash;
 	private int offset;
 	private int length;
@@ -13,7 +16,7 @@ public class FileBlockRequestMessage {
 		return fileHash;
 	}
 
-	public long getOffset() {
+	public int getOffset() {
 		return offset;
 	}
 

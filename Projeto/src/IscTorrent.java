@@ -10,6 +10,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -54,8 +55,7 @@ public class IscTorrent {
 			window.setVisible(true);
 			server.startServing(Integer.parseInt(port));
 
-		} catch (IOException e) {
-		}
+		} catch (IOException e) {}
 	}
 
 	public class DealWithClient extends Thread {
@@ -91,7 +91,8 @@ public class IscTorrent {
 					}
 
 				} catch (ClassNotFoundException | IOException e) {
-					e.printStackTrace();
+					System.err.println(e.getMessage());
+					return;
 				}
 			}
 
@@ -110,21 +111,21 @@ public class IscTorrent {
 
 		public synchronized void responseWSM(WordSearchMessage msg) throws IOException {
 			System.out.println("Eco: Recebi pedido de procura - " + ((WordSearchMessage) msg).getText());
-			String procura = ((WordSearchMessage) msg).getText();
+			String procura = ((WordSearchMessage) msg).getText().toLowerCase();
 			System.out.println(procura);
 			List<FileSearchResult> fileList = new ArrayList<FileSearchResult>();
 			for (File f : files) {
-				if (f.getName().indexOf(procura) != -1) {
+				if (f.getName().toLowerCase().indexOf(procura) != -1) {
 					String hash = FileUtils.calculateFileHash(f);
 					FileSearchResult fsr = new FileSearchResult((WordSearchMessage) msg, hash, (int) f.length(),
 							f.getName(), address, port, f);
 					fileList.add(fsr);
 				}
 			}
+			if(fileList.isEmpty()) {
+				JOptionPane.showMessageDialog(null, "Não foram encontrados arquivos correspondentes");
+			}
 			ListFileSearch listAnswer = new ListFileSearch(fileList);
-//			for(FileSearchResult f : listAnswer.getFileList()) {
-//				System.out.println(f.getFileName());
-//			}
 			for (NodeOutput out : outList) {
 				out.getOut().writeObject(listAnswer);
 			}
@@ -136,10 +137,14 @@ public class IscTorrent {
 	void connectToServer(int port) throws IOException {
 		InetAddress endereco = InetAddress.getByName(null);
 		System.out.println("Endereco:" + endereco);
-		socket = new Socket(endereco, port);
-		System.out.println("Socket:" + socket);
-		outList.add(new NodeOutput(new ObjectOutputStream(socket.getOutputStream()), Integer.toString(port)));
-		in = new ObjectInputStream(socket.getInputStream());
+		try {
+			socket = new Socket(endereco, port);
+			System.out.println("Socket:" + socket);
+			outList.add(new NodeOutput(new ObjectOutputStream(socket.getOutputStream()), Integer.toString(port), socket));
+			in = new ObjectInputStream(socket.getInputStream());
+		} catch (ConnectException e) {
+			JOptionPane.showMessageDialog(null, "O nó que tentou conectar não está ativo\n" + e.getMessage());
+		}
 
 	}
 
@@ -153,6 +158,40 @@ public class IscTorrent {
 		} finally {// a fechar
 			ss.close();
 		}
+	}
+	
+	public class DownloadThread extends Thread {
+	    private final NodeOutput nodeOutput;
+	    private final ArrayList<FileBlockRequestMessage> blocks;
+	    private final DownloadTasksManager manager;
+
+	    public DownloadThread(NodeOutput nodeOutput, ArrayList<FileBlockRequestMessage> blocks, DownloadTasksManager manager) {
+	        this.nodeOutput = nodeOutput;
+	        this.blocks = blocks;
+	        this.manager = manager;
+	    }
+
+	    @Override
+	    public void run() {
+	        try {
+	            for (FileBlockRequestMessage block : blocks) {
+	                synchronized (manager) {
+	                    // Solicitar bloco
+	                    nodeOutput.getOut().writeObject(block);
+	                    System.out.println("Pedido bloco enviado: " + block.getOffset());
+
+	                    // Esperar resposta
+	                    ObjectInputStream in = new ObjectInputStream(nodeOutput.getSocket().getInputStream());
+	                    FileBlockAnswerMessage answer = (FileBlockAnswerMessage) in.readObject();
+
+	                    // Salvar bloco recebido no gerenciador
+	                    manager.saveBlock(answer.getData(), block.getOffset());
+	                }
+	            }
+	        } catch (IOException | ClassNotFoundException e) {
+	            System.err.println("Erro no download do bloco: " + e.getMessage());
+	        }
+	    }
 	}
 
 	@SuppressWarnings("serial")
@@ -216,7 +255,7 @@ public class IscTorrent {
 					try {
 						sendMessage(searchText);
 					} catch (InterruptedException e1) {
-						e1.printStackTrace();
+						System.err.println(e1.getMessage());
 					}
 
 				}
@@ -273,15 +312,19 @@ public class IscTorrent {
 					okButton.addActionListener(new ActionListener() {
 						@Override
 						public void actionPerformed(ActionEvent e) {
-//							String addressGui = addressField.getText();
 							String portGui = portField.getText();
 							System.out.println("Endereço: " + address);
 							System.out.println("Porta: " + port);
 							try {
-								connectToServer(Integer.parseInt(portGui));
-								NewConnectionRequest ncr = new NewConnectionRequest(address, port);
-								outList.get(outList.size() - 1).getOut().writeObject(ncr);
-							} catch (NumberFormatException | IOException e1) {
+								try {
+									connectToServer(Integer.parseInt(portGui));
+									NewConnectionRequest ncr = new NewConnectionRequest(address, port);
+									outList.get(outList.size() - 1).getOut().writeObject(ncr);
+								} catch (Exception e1) {
+									dialog.dispose();
+									return;
+								}
+							} catch (NumberFormatException e1) {
 								e1.printStackTrace();
 							}
 							dialog.dispose();
@@ -303,22 +346,67 @@ public class IscTorrent {
 						return;
 					}
 //					ArrayList<FileBlockRequestMessage> blocks = null;
-					ArrayList<String> users = new ArrayList<>();
-					for (FileSearchResult f : fileList) {
-						users.add(f.getPort());
-						downloadManager = new DownloadTasksManager(f.getFile());
+					
+					// Filtrar nós que possuem o arquivo
+				    ArrayList<NodeOutput> availableNodes = new ArrayList<>();
+				    FileSearchResult arquivoSelecionado = null;
+				    for (FileSearchResult f : fileList) {
+				        if (f.getFileName().equals(selectedFile)) {
+				        	arquivoSelecionado = f;
+				            for (NodeOutput node : outList) {
+				                if (node.getPort().equals(f.getPort())) {
+				                    availableNodes.add(node);
+				                    arquivoSelecionado.setNodeList(availableNodes);
+				                }
+				            }
+				        }
+				    }
+				    
+				    // Verificar se o arquivo foi encontrado
+			        if (arquivoSelecionado == null) {
+			            JOptionPane.showMessageDialog(Gui.this, "Erro: Arquivo não encontrado nos nós disponíveis.");
+			            return;
+			        }
+				    
+			        // Inicializar o DownloadTasksManager
+			        downloadManager = new DownloadTasksManager(arquivoSelecionado);
+			        
+				    long start = System.currentTimeMillis();
+				    
+				    // Criar threads para cada nó disponível
+				    ArrayList<FileBlockRequestMessage> blocks = downloadManager.getBlocks();
+				    for (NodeOutput node : availableNodes) {
+				    	node.setBlocos(blocks.size());
+				        DownloadThread thread = new DownloadThread(node, blocks, downloadManager);
+				        thread.start();
+				    }
+					
+//					ArrayList<String> users = new ArrayList<>();
+//					for (FileSearchResult f : fileList) {
+//						users.add(f.getPort());
+//						downloadManager = new DownloadTasksManager(f);
 //						BlockManager.createBlocks(f.getFileSize(), f.getHash());
-					}
+//					}
 
-					for (NodeOutput out : outList) {
-						if (users.contains(out.getPort())) {
-							try {
-								out.getOut().writeObject(downloadManager.getBlocks().get(0));
-							} catch (IOException e1) {
-								e1.printStackTrace();
-							}
-						}
-
+//					for (NodeOutput out : outList) {
+//						if (users.contains(out.getPort())) {
+//							try {
+//								out.getOut().writeObject(downloadManager.getBlocks().get(0));
+//							} catch (IOException e1) {
+//								e1.printStackTrace();
+//							}
+//						}
+//
+//					}
+//					downloadManager.saveBlock();
+					try {
+						downloadManager.saveToFile(IscTorrent.id);
+						long end = System.currentTimeMillis();
+						int tempo = (int) ((end - start) / 1000);
+						JOptionPane.showMessageDialog(Gui.this, downloadManager.result() + "\nTempo decorrido: " + tempo + "s");
+					} catch (IOException e1) {
+						JOptionPane.showMessageDialog(Gui.this, "Erro ao salvar o arquivo" + e1.getMessage());
+						e1.printStackTrace();
 					}
 				}
 			});
@@ -332,7 +420,7 @@ public class IscTorrent {
 					out.getOut().writeObject(procura);
 
 			} catch (IOException e1) {
-				e1.printStackTrace();
+				System.err.println(e1.getMessage());
 			}
 		}
 	}
