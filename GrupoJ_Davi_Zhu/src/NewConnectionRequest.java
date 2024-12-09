@@ -1,11 +1,12 @@
 import java.io.Serializable;
+import java.net.InetAddress;
 
 @SuppressWarnings("serial")
 public class NewConnectionRequest implements Serializable {
-	private String address;
+	private InetAddress address;
 	private String port;
 
-	public NewConnectionRequest(String add, String port) {
+	public NewConnectionRequest(InetAddress add, String port) {
 		this.address = add;
 		this.port = port;
 	}
@@ -14,7 +15,7 @@ public class NewConnectionRequest implements Serializable {
 		return port;
 	}
 
-	public String getAddress() {
+	public InetAddress getAddress() {
 		return address;
 	}
 

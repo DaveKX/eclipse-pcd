@@ -1,16 +1,27 @@
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.net.InetAddress;
 import java.net.Socket;
 
-public class NodeOutput {
-	private ObjectOutputStream out;
+public class NodeOutput implements Serializable {
+//	private ObjectOutputStream out;
+//	private ObjectInputStream in;
 	private String port;
-	private Socket socket;
+	private InetAddress address;
+//	private Socket socket;
 	private int blocos;
 
-	public NodeOutput(ObjectOutputStream out, String port, Socket socket) {
-		this.out = out;
+//	public NodeOutput(ObjectInputStream in, ObjectOutputStream out, String port, Socket socket) {
+//		this.out = out;
+//		this.port = port;
+//		this.socket = socket;
+//		this.address = socket.getInetAddress().toString();
+//	}
+	
+	public NodeOutput(String port, InetAddress address) {
 		this.port = port;
-		this.socket = socket;
+		this.address = address;
 	}
 	
 	public int getBlocos() {
@@ -21,25 +32,29 @@ public class NodeOutput {
 		this.blocos = blocos;
 	}
 
-	public ObjectOutputStream getOut() {
-		return out;
-	}
+//	public ObjectOutputStream getOut() {
+//		return out;
+//	}
+//	
+//	public ObjectInputStream getIn() {
+//		return in;
+//	}
 
 	public String getPort() {
 		return port;
 	}
 	
-	public String getAddress() {
-		return socket.getInetAddress().toString();
+	public InetAddress getAddress() {
+		return address;
 	}
 	
-	public Socket getSocket() {
-		return socket;
-	}
+//	public Socket getSocket() {
+//		return socket;
+//	}
 	
 	@Override
 	public String toString() {
-		return "NodeAddress [" + socket.getInetAddress() + ", " + port + "]";
+		return "NodeAddress [" + address + ", " + port + "]";
 	}
 
 }

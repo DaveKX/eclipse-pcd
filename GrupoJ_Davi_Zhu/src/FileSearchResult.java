@@ -1,6 +1,7 @@
 import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Objects;
 
 @SuppressWarnings("serial")
 public class FileSearchResult implements Serializable {
@@ -11,10 +12,11 @@ public class FileSearchResult implements Serializable {
 	private String address;
 	private String port;
 	private File f;
+	private NodeOutput node;
 	private ArrayList<NodeOutput> nodeList = new ArrayList<>();
 
 	public FileSearchResult(WordSearchMessage procura, String hash, int fileSize, String fileName, String address,
-			String port, File f) {
+			String port, File f, NodeOutput node) {
 		this.procura = procura;
 		this.hash = hash;
 		this.fileSize = fileSize;
@@ -22,6 +24,7 @@ public class FileSearchResult implements Serializable {
 		this.address = address;
 		this.port = port;
 		this.f = f;
+		this.node = node;
 	}
 	
 	public ArrayList<NodeOutput> getNodeList() {
@@ -38,6 +41,10 @@ public class FileSearchResult implements Serializable {
 	
 	public File getFile() {
 		return f;
+	}
+	
+	public NodeOutput getNode() {
+		return node;
 	}
 
 	public String getHash() {
@@ -59,6 +66,20 @@ public class FileSearchResult implements Serializable {
 	public String getPort() {
 		return port;
 	}
+	
+	@Override
+	public boolean equals(Object o) {
+	    if (this == o) return true;
+	    if (o == null || getClass() != o.getClass()) return false;
+	    FileSearchResult that = (FileSearchResult) o;
+	    return getFileName().equals(that.getFileName());
+	}
+
+	@Override
+	public int hashCode() {
+	    return Objects.hash(getFileName());
+	}
+
 
 	@Override
 	public String toString() {

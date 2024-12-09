@@ -36,20 +36,22 @@ public class IscTorrent {
 	private ArrayList<NodeOutput> outList = new ArrayList<NodeOutput>();
 	@SuppressWarnings("unused")
 	private ObjectInputStream in;
+	private ObjectOutputStream out;
 	private Socket socket;
 	private static String id;
 	private File[] files;
-	private String address;
+	private InetAddress address;
 	private static String port;
 	private NodeOutput noAtual;
-	private List<FileSearchResult> fileList;
+	private List<FileSearchResult> fileList = new ArrayList<>();
 	private DefaultListModel<String> listModel;
-	private final Set<String> processedSearchIds = Collections.synchronizedSet(new HashSet<>());
-	private List<FileSearchResult> searchResults = new ArrayList<>();
+//	private final Set<String> processedSearchIds = Collections.synchronizedSet(new HashSet<>());
+	private Set<FileSearchResult> searchResults = new HashSet<>();
 
 	public IscTorrent(String id) throws UnknownHostException {
 		IscTorrent.id = id;
-		this.address = InetAddress.getByName(null).toString();
+		this.address = InetAddress.getByName(null);
+		this.noAtual = new NodeOutput(port, address);
 	}
 
 	public static void main(String[] args) {
@@ -59,7 +61,7 @@ public class IscTorrent {
 			System.out.println("Sou o servidor: " + id);
 			Gui window = server.new Gui(args[1]);
 			window.setVisible(true);
-			server.startServing(Integer.parseInt(port));
+			server.startServing();
 
 		} catch (IOException e) {
 		}
@@ -83,56 +85,95 @@ public class IscTorrent {
 					msg = ins.readObject();
 					System.out.println("Classe da mensagem recebida: " + msg.getClass().getName());
 					if (msg instanceof NewConnectionRequest) {
-						connectToServer(Integer.parseInt(((NewConnectionRequest) msg).getPort()));
+//						connectToServer(Integer.parseInt(((NewConnectionRequest) msg).getPort()));
+						NewConnectionRequest ncr = (NewConnectionRequest) msg;
+						InetAddress address = ncr.getAddress();
+						String port = ncr.getPort();		        		   
+		        		handleNewNodeRequest(address, port);
 						System.out.println("Conectei-me ao servidor " + ((NewConnectionRequest) msg).getPort());
 					} else if (msg instanceof WordSearchMessage) {
 						responseWSM((WordSearchMessage) msg);
-					} else if (msg instanceof ListFileSearch) {
-						if (!((ListFileSearch) msg).getOriginPort().equals(port)) {
-							System.out.println("Mensagem recebida, mas este nó não é o originador. Não atualizando GUI.");
-						} else {
-							System.out.println("Arquivos recebidos. Atualizando GUI.");
-//							listModel.clear();
-							searchResults.clear();
-							fileList = ((ListFileSearch) msg).getFileList();
-							for (FileSearchResult f : fileList) {
-								boolean exists = false;
-								for(FileSearchResult item : searchResults) {
-									if(item.getFileName().equals(f.getFileName())) {
-										exists = true;
-										ArrayList<NodeOutput> listaNos = item.getNodeList();
-										for(NodeOutput node : outList) {
-											if(node.getPort().equals(item.getPort()) ) {
-												listaNos.add(node);
-											}
-										}
-										item.setNodeList(listaNos);
-									}
-								}
-								if(!exists) {
-									ArrayList<NodeOutput> aux = new ArrayList<>();
-									for(NodeOutput node : outList) {
-										if(node.getPort().equals(f.getPort()) ) {
-											aux.add(node);
-										}
-									}
-									f.setNodeList(aux);
-									searchResults.add(f);
-								}
-							}
-							for(FileSearchResult f : searchResults) {
-								listModel.addElement(f.getFileName() + "<" + f.getNodeList().size() + ">");
-							}
+						for (FileSearchResult f : fileList) {
+							outs.writeObject(f);
 						}
+						outs.writeObject("fim");
 					}
+//					else if (msg instanceof FileSearchResult) {
+//						listModel.clear();
+//						handleSearchResult((FileSearchResult) msg);
+//						for(FileSearchResult f : searchResults) {
+//							listModel.addElement(f.getFileName() + "<" + f.getNodeList().size() + ">");
+//						}
+//						searchResults.clear();
+//					}
+//					} else if (msg instanceof ListFileSearch) {
+//						if (!((ListFileSearch) msg).getOriginPort().equals(port)) {
+//							System.out.println("Mensagem recebida, mas este nó não é o originador. Não atualizando GUI.");
+//						} else {
+//							System.out.println("Arquivos recebidos. Atualizando GUI.");
+//							listModel.clear();
+//							searchResults.clear();
+//							searchResults = ((ListFileSearch) msg).getFileList();
+//							for(FileSearchResult f : searchResults) {
+//								listModel.addElement(f.getFileName() + "<" + f.getNodeList().size() + ">");
+//							}
+//						}
+//					}
 
 				} catch (ClassNotFoundException | IOException e) {
 					System.err.println(e.getMessage());
 					System.exit(1); // fechar tudo se um nó for fechado
-				}
+				} 
+//				finally {
+//					try {
+//						if (socket != null && !socket.isClosed()) {
+//							socket.close();
+//						}
+//					} catch (IOException e) {
+//						e.printStackTrace();
+//					}
+//				}
 			}
 
 		}
+		
+		private void handleNewNodeRequest(InetAddress address, String port) {
+			NodeOutput no = new NodeOutput(port, address);
+        	if(!outList.contains(no)){
+        		outList.add(no);
+        	}	                	
+		}
+
+//		public synchronized void handleSearchResult(FileSearchResult f) throws IOException {
+//			String porta = f.getPort();
+//			boolean exists = false;
+//			for (FileSearchResult item : searchResults) {
+//				if (item.getFileName().equals(f.getFileName())) {
+//					exists = true;
+//					ArrayList<NodeOutput> listaNos = item.getNodeList();
+//					for (NodeOutput node : outList) {
+//						if (node.getPort().equals(item.getPort())) {
+//							listaNos.add(node);
+//						}
+//					}
+//					item.setNodeList(listaNos);
+//				}
+//			}
+//			if (!exists) {
+//				ArrayList<NodeOutput> aux = new ArrayList<>();
+//				for (NodeOutput node : outList) {
+//					if (node.getPort().equals(f.getPort())) {
+//						aux.add(node);
+//					}
+//				}
+//				f.setNodeList(aux);
+//				searchResults.add(f);
+//			}
+//			ListFileSearch listAnswer = new ListFileSearch(searchResults, porta);
+//			for (NodeOutput out : outList) {
+//				out.getOut().writeObject(listAnswer);
+//			}
+//		}
 
 		public synchronized void responseWSM(WordSearchMessage msg) throws IOException {
 			System.out.println("Recebi pedido de procura: '" + ((WordSearchMessage) msg).getText() + "', do nó: "
@@ -145,13 +186,13 @@ public class IscTorrent {
 //			}
 //			processedSearchIds.add(msg.getSearchId());
 
-			List<FileSearchResult> fileList = new ArrayList<>();
+//			List<FileSearchResult> fileList = new ArrayList<>();
 //			ArrayList<NodeOutput> availableNodes = new ArrayList<>();
 			for (File f : files) {
 				if (f.getName().toLowerCase().contains(procura)) {
 					String hash = FileUtils.calculateFileHash(f);
 					FileSearchResult fsr = new FileSearchResult((WordSearchMessage) msg, hash, (int) f.length(),
-							f.getName(), address, port, f);
+							f.getName(), address.toString(), port, f, noAtual);
 //					for (NodeOutput node : outList) {
 //						if (node.getPort().equals(port)) {
 //							availableNodes.add(node);
@@ -161,12 +202,16 @@ public class IscTorrent {
 					fileList.add(fsr);
 				}
 			}
-			
 			if (!fileList.isEmpty()) {
-				ListFileSearch listAnswer = new ListFileSearch(fileList, ((WordSearchMessage) msg).getPort());
-				for (NodeOutput out : outList) {
-					out.getOut().writeObject(listAnswer);
-				}
+//				for (NodeOutput out : outList) {
+//					for(FileSearchResult f : fileList) {
+//						out.getOut().writeObject(f);
+//					}
+//				}
+//				ListFileSearch listAnswer = new ListFileSearch(searchResults, ((WordSearchMessage) msg).getPort());
+//				for (NodeOutput out : outList) {
+//					out.getOut().writeObject(listAnswer);
+//				}
 				System.out.println("Enviei resposta.");
 			} else {
 				System.out.println("Não foram encontrados arquivos correspondentes.");
@@ -176,22 +221,22 @@ public class IscTorrent {
 	}
 
 	void connectToServer(int port) throws IOException {
-		InetAddress endereco = InetAddress.getByName(null);
-		System.out.println("Endereco:" + endereco);
-		try {
-			socket = new Socket(endereco, port);
-			System.out.println("Socket:" + socket);
-			outList.add(
-					new NodeOutput(new ObjectOutputStream(socket.getOutputStream()), Integer.toString(port), socket));
-			in = new ObjectInputStream(socket.getInputStream());
-		} catch (ConnectException e) {
-			JOptionPane.showMessageDialog(null, "O nó que tentou conectar não está ativo\n" + e.getMessage());
-		}
+//		InetAddress endereco = InetAddress.getByName(null);
+//		System.out.println("Endereco:" + endereco);
+//		try {
+//			socket = new Socket(endereco, port);
+//			System.out.println("Socket:" + socket);
+//			out = new ObjectOutputStream(socket.getOutputStream());
+//			in = new ObjectInputStream(socket.getInputStream());
+//			outList.add(new NodeOutput(Integer.toString(port), socket));
+//		} catch (ConnectException e) {
+//			JOptionPane.showMessageDialog(null, "O nó que tentou conectar não está ativo\n" + e.getMessage());
+//		}
 
 	}
 
-	public void startServing(int port) throws IOException {
-		ServerSocket ss = new ServerSocket(port);
+	public void startServing() throws IOException {
+		ServerSocket ss = new ServerSocket(Integer.parseInt(port));
 		try { // Conexao aceite
 			while (true) {
 				Socket socket = ss.accept();
@@ -202,40 +247,40 @@ public class IscTorrent {
 		}
 	}
 
-	public class DownloadThread extends Thread {
-		private final NodeOutput nodeOutput;
-		private final ArrayList<FileBlockRequestMessage> blocks;
-		private final DownloadTasksManager manager;
-
-		public DownloadThread(NodeOutput nodeOutput, ArrayList<FileBlockRequestMessage> blocks,
-				DownloadTasksManager manager) {
-			this.nodeOutput = nodeOutput;
-			this.blocks = blocks;
-			this.manager = manager;
-		}
-
-		@Override
-		public void run() {
-			try {
-				for (FileBlockRequestMessage block : blocks) {
-					synchronized (manager) {
-						// Solicitar bloco
-						nodeOutput.getOut().writeObject(block);
-						System.out.println("Pedido bloco enviado: " + block.getOffset());
-
-						// Esperar resposta
-						ObjectInputStream in = new ObjectInputStream(nodeOutput.getSocket().getInputStream());
-						FileBlockAnswerMessage answer = (FileBlockAnswerMessage) in.readObject();
-
-						// Salvar bloco recebido no gerenciador
-						manager.saveBlock(answer.getData(), block.getOffset());
-					}
-				}
-			} catch (IOException | ClassNotFoundException e) {
-				System.err.println("Erro no download do bloco: " + e.getMessage());
-			}
-		}
-	}
+//	public class DownloadThread extends Thread {
+//		private final NodeOutput nodeOutput;
+//		private final ArrayList<FileBlockRequestMessage> blocks;
+//		private final DownloadTasksManager manager;
+//
+//		public DownloadThread(NodeOutput nodeOutput, ArrayList<FileBlockRequestMessage> blocks,
+//				DownloadTasksManager manager) {
+//			this.nodeOutput = nodeOutput;
+//			this.blocks = blocks;
+//			this.manager = manager;
+//		}
+//
+//		@Override
+//		public void run() {
+//			try {
+//				for (FileBlockRequestMessage block : blocks) {
+//					synchronized (manager) {
+//						// Solicitar bloco
+//						nodeOutput.getOut().writeObject(block);
+//						System.out.println("Pedido bloco enviado: " + block.getOffset());
+//
+//						// Esperar resposta
+//						ObjectInputStream in = new ObjectInputStream(nodeOutput.getSocket().getInputStream());
+//						FileBlockAnswerMessage answer = (FileBlockAnswerMessage) in.readObject();
+//
+//						// Salvar bloco recebido no gerenciador
+//						manager.saveBlock(answer.getData(), block.getOffset());
+//					}
+//				}
+//			} catch (IOException | ClassNotFoundException e) {
+//				System.err.println("Erro no download do bloco: " + e.getMessage());
+//			}
+//		}
+//	}
 
 	@SuppressWarnings("serial")
 	public class Gui extends JFrame {
@@ -295,13 +340,54 @@ public class IscTorrent {
 				public void actionPerformed(ActionEvent e) {
 					String searchText = searchField.getText();
 					listModel.clear();
+					System.out.println("Limpeza de searchResults. Tamanho antes: " + searchResults.size());
 					searchResults.clear();
-					try {
-						sendMessage(searchText);
-					} catch (InterruptedException e1) {
-						System.err.println(e1.getMessage());
-					}
+					System.out.println("Limpeza concluída. Tamanho após: " + searchResults.size());
+					for (NodeOutput node : outList) {
+						try {
+							Socket s = new Socket(node.getAddress(), Integer.parseInt(node.getPort()));
+							out = new ObjectOutputStream(s.getOutputStream());
+	                        in = new ObjectInputStream(s.getInputStream());
 
+							WordSearchMessage wsm = new WordSearchMessage(searchText, node.getAddress().toString(), node.getPort());
+							out.writeObject(wsm);
+//							out.flush();
+
+//							sendMessage(searchText);
+
+							Object msg;
+							while ((msg = in.readObject()) != null) {
+								if (msg instanceof FileSearchResult) {
+									FileSearchResult f = (FileSearchResult) msg;
+									FileSearchResult existing = searchResults.stream()
+			                                .filter(item -> item.getFileName().equals(f.getFileName()))
+			                                .findFirst()
+			                                .orElse(null);
+									System.out.println("1 " + f.getFileName());
+									if (existing != null) {
+		                                existing.getNodeList().add(f.getNode());
+		                            } else {
+		                                ArrayList<NodeOutput> aux = new ArrayList<>();
+		                                aux.add(f.getNode());
+		                                f.setNodeList(aux);
+		                                searchResults.add(f);
+		                            }
+								} else if (msg instanceof String) {
+									if (msg.equals("fim")) {
+										System.out.println("Recebido sinal de fim.");
+										break;
+									}
+								}
+							}
+
+						} catch (IOException | ClassNotFoundException e1) {
+							System.err.println(e1.getMessage());
+						}
+					}
+					
+					for (FileSearchResult f : searchResults) {
+						listModel.addElement(f.getFileName() + "<" + f.getNodeList().size() + ">");
+					}
 				}
 			});
 
@@ -356,19 +442,32 @@ public class IscTorrent {
 					okButton.addActionListener(new ActionListener() {
 						@Override
 						public void actionPerformed(ActionEvent e) {
-							String portGui = portField.getText();
-							System.out.println("Endereço: " + address);
+							String port = portField.getText().trim();
+							InetAddress addr = null;
+							try {
+								addr = InetAddress.getLocalHost();
+							} catch (UnknownHostException e1) {
+								e1.printStackTrace();
+							}
+							System.out.println("Endereço: " + addr);
 							System.out.println("Porta: " + port);
 							try {
-								try {
-									connectToServer(Integer.parseInt(portGui));
-									NewConnectionRequest ncr = new NewConnectionRequest(address, port);
-									outList.get(outList.size() - 1).getOut().writeObject(ncr);
-								} catch (Exception e1) {
-									dialog.dispose();
-									return;
-								}
-							} catch (NumberFormatException e1) {
+
+								System.out.println("Endereço: " + addr);
+								socket = new Socket(addr, Integer.parseInt(port));
+								System.out.println("Socket: " + socket);
+								out = new ObjectOutputStream(socket.getOutputStream());
+//								in = new ObjectInputStream(socket.getInputStream());
+
+								NewConnectionRequest ncr = new NewConnectionRequest(addr, noAtual.getPort());
+								out.writeObject(ncr);
+
+								NodeOutput node = new NodeOutput(port, addr);
+								System.out.println("Novo nó: " + node);
+								outList.add(node);
+
+							} catch (IOException e1) {
+								JOptionPane.showMessageDialog(null, "O nó que tentou conectar não está ativo\n" + e1.getMessage());
 								e1.printStackTrace();
 							}
 							dialog.dispose();
@@ -392,7 +491,7 @@ public class IscTorrent {
 
 					// Filtrar nós que possuem o arquivo
 					FileSearchResult arquivoSelecionado = null;
-					for (FileSearchResult f : fileList) {
+					for (FileSearchResult f : searchResults) {
 						if (f.getFileName().equals(selectedFile)) {
 							arquivoSelecionado = f;
 						}
@@ -405,43 +504,40 @@ public class IscTorrent {
 					}
 
 					// Inicializar o DownloadTasksManager
-					downloadManager = new DownloadTasksManager(arquivoSelecionado);
 
-					long start = System.currentTimeMillis();
+//					long start = System.currentTimeMillis();
 
 					// Criar threads para cada nó disponível
-					ArrayList<NodeOutput> availableNodes = arquivoSelecionado.getNodeList();
-					ArrayList<FileBlockRequestMessage> blocks = downloadManager.getBlocks();
-					for (NodeOutput node : availableNodes) {
-						node.setBlocos(blocks.size());
-						DownloadThread thread = new DownloadThread(node, blocks, downloadManager);
-						thread.start();
-					}
+//					ArrayList<NodeOutput> availableNodes = arquivoSelecionado.getNodeList();
+//					ArrayList<FileBlockRequestMessage> blocks = downloadManager.getBlocks();
+//					for (NodeOutput node : availableNodes) {
+//						node.setBlocos(blocks.size());
+//						DownloadThread thread = new DownloadThread(node, blocks, downloadManager);
+//						thread.start();
+//					}
+					
+					downloadManager = new DownloadTasksManager(arquivoSelecionado, id);
+					downloadManager.download();
+					long duration = downloadManager.getDuration();
 
-					try {
-						downloadManager.saveToFile(IscTorrent.id);
-						long end = System.currentTimeMillis();
-						int tempo = (int) ((end - start) / 1000);
-						JOptionPane.showMessageDialog(Gui.this,
-								downloadManager.result() + "\nTempo decorrido: " + tempo + "s");
-					} catch (IOException e1) {
-						JOptionPane.showMessageDialog(Gui.this, "Erro ao salvar o arquivo: " + e1.getMessage());
-					}
+//					long end = System.currentTimeMillis();
+//					int tempo = (int) ((end - start) / 1000);
+					JOptionPane.showMessageDialog(Gui.this, downloadManager.result() + "\nTempo decorrido: " + (int) (duration / 1000) + "s");
 				}
 			});
 
 		}
 
-		public synchronized void sendMessage(String text) throws InterruptedException {
-			WordSearchMessage procura = new WordSearchMessage(text, address, port);
-			try {
-				for (NodeOutput out : outList)
-					out.getOut().writeObject(procura);
-
-			} catch (IOException e1) {
-				System.err.println("Erro ao enviar mensagem de pesquisa: " + e1.getMessage());
-			}
-		}
+//		public synchronized void sendMessage(String text) throws InterruptedException {
+//			WordSearchMessage procura = new WordSearchMessage(text, address.toString(), port);
+//			try {
+//				for (NodeOutput out : outList)
+//					out.getOut().writeObject(procura);
+//
+//			} catch (IOException e1) {
+//				System.err.println("Erro ao enviar mensagem de pesquisa: " + e1.getMessage());
+//			}
+//		}
 	}
 
 	private static File[] getFiles() {
